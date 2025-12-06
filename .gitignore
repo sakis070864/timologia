@@ -1,0 +1,33 @@
+# Dependencies
+
+/node_modules
+/dist
+/build
+/temp
+
+# Environment Variables and Sensitive Files
+
+.env
+.env.local
+Kleidia FIRABASE.txt
+
+# Logs and npm specific files
+
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor/OS Specific Files
+
+/.vscode/
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
