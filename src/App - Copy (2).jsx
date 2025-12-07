@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-// Εισάγουμε και το setDoc για να ορίζουμε εμείς το ID του εγγράφου
+// Υποθέτουμε ότι το περιβάλλον παρέχει τα Firebase modules
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, serverTimestamp, setDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, serverTimestamp } from 'firebase/firestore';
 
 // --- ΡΥΘΜΙΣΕΙΣ FIREBASE ---
+// Χρησιμοποιούμε απευθείας τα κλειδιά για αποφυγή προβλημάτων με το build environment (es2015 vs es2020)
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -29,7 +30,7 @@ const formatCurrency = (amount) => {
     }
 };
 
-// --- Helper για μετατροπή ArrayBuffer σε Base64 ---
+// --- Helper για μετατροπή ArrayBuffer σε Base64 (για τη γραμματοσειρά) ---
 const arrayBufferToBase64 = (buffer) => {
     let binary = '';
     const bytes = new Uint8Array(buffer);
@@ -40,10 +41,12 @@ const arrayBufferToBase64 = (buffer) => {
     return window.btoa(binary);
 };
 
-// --- Statistics Modal ---
+// --- NEW COMPONENT: Statistics Modal (Dark Mode) ---
 const StatisticsModal = ({ invoices, onClose }) => {
+    // State για Full Screen
     const [isFullScreen, setIsFullScreen] = useState(false);
 
+    // Υπολογισμός Στατιστικών Προμηθευτών
     const stats = useMemo(() => {
         const supplierMap = {};
         let totalAmount = 0;
@@ -68,6 +71,7 @@ const StatisticsModal = ({ invoices, onClose }) => {
         return data.sort((a, b) => b.amount - a.amount);
     }, [invoices]);
 
+    // Υπολογισμός Στατιστικών Ανά Μήνα
     const monthlyStats = useMemo(() => {
         const monthMap = {};
         let totalAmount = 0;
@@ -141,6 +145,7 @@ const StatisticsModal = ({ invoices, onClose }) => {
 
                 {/* Content */}
                 <div className="p-6 overflow-y-auto flex-grow bg-gray-900 space-y-8 custom-scrollbar-dark">
+                    
                     {/* Summary Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-sm flex items-center">
@@ -301,7 +306,7 @@ const StatisticsModal = ({ invoices, onClose }) => {
     );
 };
 
-// --- COMPONENT: Λεπτομέρειες Τιμολογίου ---
+// --- COMPONENT: Λεπτομέρειες Τιμολογίου (Dark Mode) ---
 const InvoiceDetailsModal = ({ invoice, onClose }) => {
     if (!invoice) return null;
 
@@ -372,7 +377,7 @@ const InvoiceDetailsModal = ({ invoice, onClose }) => {
     );
 };
 
-// Component: Custom Confirmation Modal
+// Component: Custom Confirmation Modal (Dark Mode)
 const ConfirmationModal = ({ isOpen, message, onConfirm, onCancel, content }) => {
     if (!isOpen) return null;
 
@@ -459,8 +464,9 @@ function App() {
 
     useEffect(() => {
         if (!initializeApp || !firebaseConfig) {
+            // Αν δεν υπάρχουν τα κλειδιά (π.χ. στο Vercel αν δεν τα έβαλες), δείξε σφάλμα
             console.error('Firebase Setup Error: initializeApp or firebaseConfig is missing.');
-            setError('ΣΦΑΛΜΑ: Τα κρίσιμα modules του Firebase ή οι ρυθμίσεις δεν φορτώθηκαν.');
+            setError('ΣΦΑΛΜΑ: Τα κρίσιμα modules του Firebase ή οι ρυθμίσεις δεν φορτώθηκαν. Βεβαιωθείτε ότι έχετε ορίσει τα Environment Variables.');
             setLoading(false);
             return;
         }
@@ -506,9 +512,7 @@ function App() {
             return;
         }
 
-        // --- PUBLIC PATH ---
-        const collectionPath = `artifacts/${appId}/public/data/invoices`;
-        
+        const collectionPath = `artifacts/${appId}/users/${userId}/invoices`;
         const invoicesCollection = collection(db, collectionPath);
         const q = query(invoicesCollection);
 
@@ -546,7 +550,9 @@ function App() {
 
         }, (e) => {
             console.error("Firestore Snapshot Error:", e);
-            setError('Αποτυχία φόρτωσης τιμολογίων. Ελέγξτε τα δικαιώματα πρόσβασης.');
+            if (!error || !error.includes('ΣΦΑΛΜΑ: Τα κρίσιμα modules')) {
+                setError('Αποτυχία φόρτωσης τιμολογίων.');
+            }
         });
 
         return () => unsubscribe();
@@ -555,12 +561,14 @@ function App() {
     // --- AUTO-SCROLL TO DUPLICATE ---
     useEffect(() => {
         if (potentialDuplicateId) {
+            // Βρίσκουμε το DOM element του διπλότυπου τιμολογίου
             const element = document.getElementById(`invoice-${potentialDuplicateId}`);
             if (element) {
+                // Κάνουμε smooth scroll για να έρθει στο κέντρο
                 element.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }
-    }, [potentialDuplicateId]);
+    }, [potentialDuplicateId]); // Τρέχει κάθε φορά που αλλάζει το ID του διπλότυπου
 
     const checkPotentialDuplicate = (invoiceToCheck) => {
         const match = invoices.find(invoice => 
@@ -623,32 +631,21 @@ function App() {
             return;
         }
 
-        // Keep the check for feedback, but proceed to overwrite/merge
         const isDuplicate = checkPotentialDuplicate(newInvoice);
-        
+        if (isDuplicate) {
+            return; 
+        }
+
         try {
             setError(null);
-            const collectionPath = `artifacts/${appId}/public/data/invoices`;
-            
-            // --- ΜΟΝΑΔΙΚΟ ID ΓΙΑ ΑΠΟΦΥΓΗ ΔΙΠΛΟΤΥΠΩΝ ---
-            // Δημιουργούμε ένα ID που είναι μοναδικό για κάθε συνδυασμό Προμηθευτή + Αριθμού.
-            // Αν ξαναδοθεί το ίδιο, θα παραχθεί το ίδιο ID και θα γίνει ενημέρωση αντί για νέο.
-            const uniqueDocId = `${newInvoice.supplier}-${newInvoice.number}`
-                .toLowerCase()
-                .trim()
-                .replace(/[\/\s\\]/g, '_'); // Αντικαθιστούμε κενά και καθέτους με underscore
-
+            const collectionPath = `artifacts/${appId}/users/${userId}/invoices`;
             const dataToSave = {
                 ...newInvoice,
                 amount: parsedAmount, 
                 date: new Date(newInvoice.date), 
                 createdAt: serverTimestamp(),
-                createdBy: userId // Καταγράφουμε ποιος το έκανε, αλλά όλοι το βλέπουν
             };
-            
-            // Χρησιμοποιούμε setDoc με συγκεκριμένο ID αντί για addDoc
-            await setDoc(doc(db, collectionPath, uniqueDocId), dataToSave);
-            
+            await addDoc(collection(db, collectionPath), dataToSave);
             handleClearForm();
         } catch (e) {
             console.error("Error adding document: ", e);
@@ -672,9 +669,7 @@ function App() {
         
         try {
             setError(null);
-            // --- ΔΙΑΓΡΑΦΗ ΑΠΟ ΤΟΝ ΚΟΙΝΟΧΡΗΣΤΟ ΦΑΚΕΛΟ ---
-            const docPath = `artifacts/${appId}/public/data/invoices/${invoiceToDelete}`;
-            
+            const docPath = `artifacts/${appId}/users/${userId}/invoices/${invoiceToDelete}`;
             await deleteDoc(doc(db, docPath));
             
             if (viewInvoice && viewInvoice.id === invoiceToDelete) {

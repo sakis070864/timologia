@@ -4,9 +4,8 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, serverTimestamp } from 'firebase/firestore';
 
-// --- ΡΥΘΜΙΣΕΙΣ FIREBASE (ENVIRONMENT VARIABLES) ---
-// Τώρα τα κλειδιά διαβάζονται από το περιβάλλον (.env ή Vercel)
-// Αν τα κλειδιά λείπουν, θα εμφανιστεί μήνυμα λάθους στο UI.
+// --- ΡΥΘΜΙΣΕΙΣ FIREBASE ---
+// Χρησιμοποιούμε απευθείας τα κλειδιά για αποφυγή προβλημάτων με το build environment (es2015 vs es2020)
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -559,6 +558,18 @@ function App() {
         return () => unsubscribe();
     }, [db, userId, viewInvoice]); 
 
+    // --- AUTO-SCROLL TO DUPLICATE ---
+    useEffect(() => {
+        if (potentialDuplicateId) {
+            // Βρίσκουμε το DOM element του διπλότυπου τιμολογίου
+            const element = document.getElementById(`invoice-${potentialDuplicateId}`);
+            if (element) {
+                // Κάνουμε smooth scroll για να έρθει στο κέντρο
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    }, [potentialDuplicateId]); // Τρέχει κάθε φορά που αλλάζει το ID του διπλότυπου
+
     const checkPotentialDuplicate = (invoiceToCheck) => {
         const match = invoices.find(invoice => 
             (invoice.supplier || '').toLowerCase().trim() === (invoiceToCheck.supplier || '').toLowerCase().trim() &&
@@ -946,6 +957,7 @@ function App() {
                         {invoices.map((invoice) => (
                             <tr 
                                 key={invoice.id} 
+                                id={`invoice-${invoice.id}`}
                                 onClick={() => setViewInvoice(invoice)}
                                 className={`${invoice.id === potentialDuplicateId ? 'bg-pink-900/30 border-l-4 border-pink-600' : ''} cursor-pointer hover:bg-gray-700 transition-colors invoice-row`}
                                 style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
@@ -1173,8 +1185,9 @@ function App() {
                                             {sortedAndFilteredInvoices.grouped[groupName].map((invoice) => (
                                                 <tr 
                                                     key={invoice.id} 
+                                                    id={`invoice-${invoice.id}`}
                                                     onClick={() => setViewInvoice(invoice)}
-                                                    className="cursor-pointer hover:bg-gray-50 transition-colors"
+                                                    className={`${invoice.id === potentialDuplicateId ? 'bg-pink-900/30 border-l-4 border-pink-600' : ''} cursor-pointer hover:bg-gray-50 transition-colors`}
                                                 >
                                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{invoice.date ? invoice.date.toLocaleDateString('el-GR') : 'N/A'}</td>
                                                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-indigo-600">{invoice.supplier}</td>
