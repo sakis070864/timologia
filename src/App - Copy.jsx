@@ -5,6 +5,7 @@ import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged }
 import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, serverTimestamp, setDoc } from 'firebase/firestore';
 
 // --- ΡΥΘΜΙΣΕΙΣ FIREBASE ---
+// Χρησιμοποιούμε τα πραγματικά κλειδιά (Hardcoded) για άμεση λειτουργία
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -29,7 +30,7 @@ const formatCurrency = (amount) => {
     }
 };
 
-// --- Helper για μετατροπή ArrayBuffer σε Base64 ---
+// --- Helper για μετατροπή ArrayBuffer σε Base64 (για τη γραμματοσειρά) ---
 const arrayBufferToBase64 = (buffer) => {
     let binary = '';
     const bytes = new Uint8Array(buffer);
@@ -40,10 +41,12 @@ const arrayBufferToBase64 = (buffer) => {
     return window.btoa(binary);
 };
 
-// --- Statistics Modal ---
+// --- NEW COMPONENT: Statistics Modal (Dark Mode) ---
 const StatisticsModal = ({ invoices, onClose }) => {
+    // State για Full Screen
     const [isFullScreen, setIsFullScreen] = useState(false);
 
+    // Υπολογισμός Στατιστικών Προμηθευτών
     const stats = useMemo(() => {
         const supplierMap = {};
         let totalAmount = 0;
@@ -68,6 +71,7 @@ const StatisticsModal = ({ invoices, onClose }) => {
         return data.sort((a, b) => b.amount - a.amount);
     }, [invoices]);
 
+    // Υπολογισμός Στατιστικών Ανά Μήνα
     const monthlyStats = useMemo(() => {
         const monthMap = {};
         let totalAmount = 0;
@@ -141,6 +145,7 @@ const StatisticsModal = ({ invoices, onClose }) => {
 
                 {/* Content */}
                 <div className="p-6 overflow-y-auto flex-grow bg-gray-900 space-y-8 custom-scrollbar-dark">
+                    
                     {/* Summary Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-sm flex items-center">
@@ -301,7 +306,7 @@ const StatisticsModal = ({ invoices, onClose }) => {
     );
 };
 
-// --- COMPONENT: Λεπτομέρειες Τιμολογίου ---
+// --- COMPONENT: Λεπτομέρειες Τιμολογίου (Dark Mode) ---
 const InvoiceDetailsModal = ({ invoice, onClose }) => {
     if (!invoice) return null;
 
@@ -372,7 +377,7 @@ const InvoiceDetailsModal = ({ invoice, onClose }) => {
     );
 };
 
-// Component: Custom Confirmation Modal
+// Component: Custom Confirmation Modal (Dark Mode)
 const ConfirmationModal = ({ isOpen, message, onConfirm, onCancel, content }) => {
     if (!isOpen) return null;
 
@@ -459,8 +464,9 @@ function App() {
 
     useEffect(() => {
         if (!initializeApp || !firebaseConfig) {
+            // Αν δεν υπάρχουν τα κλειδιά (π.χ. στο Vercel αν δεν τα έβαλες), δείξε σφάλμα
             console.error('Firebase Setup Error: initializeApp or firebaseConfig is missing.');
-            setError('ΣΦΑΛΜΑ: Τα κρίσιμα modules του Firebase ή οι ρυθμίσεις δεν φορτώθηκαν.');
+            setError('ΣΦΑΛΜΑ: Τα κρίσιμα modules του Firebase ή οι ρυθμίσεις δεν φορτώθηκαν. Βεβαιωθείτε ότι έχετε ορίσει τα Environment Variables.');
             setLoading(false);
             return;
         }
@@ -546,7 +552,9 @@ function App() {
 
         }, (e) => {
             console.error("Firestore Snapshot Error:", e);
-            setError('Αποτυχία φόρτωσης τιμολογίων. Ελέγξτε τα δικαιώματα πρόσβασης.');
+            if (!error || !error.includes('ΣΦΑΛΜΑ: Τα κρίσιμα modules')) {
+                setError('Αποτυχία φόρτωσης τιμολογίων. Ελέγξτε τα δικαιώματα πρόσβασης.');
+            }
         });
 
         return () => unsubscribe();
@@ -555,12 +563,14 @@ function App() {
     // --- AUTO-SCROLL TO DUPLICATE ---
     useEffect(() => {
         if (potentialDuplicateId) {
+            // Βρίσκουμε το DOM element του διπλότυπου τιμολογίου
             const element = document.getElementById(`invoice-${potentialDuplicateId}`);
             if (element) {
+                // Κάνουμε smooth scroll για να έρθει στο κέντρο
                 element.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }
-    }, [potentialDuplicateId]);
+    }, [potentialDuplicateId]); // Τρέχει κάθε φορά που αλλάζει το ID του διπλότυπου
 
     const checkPotentialDuplicate = (invoiceToCheck) => {
         const match = invoices.find(invoice => 
@@ -628,11 +638,11 @@ function App() {
         
         try {
             setError(null);
+            // --- ΔΙΟΡΘΩΣΗ: PUBLIC PATH ---
             const collectionPath = `artifacts/${appId}/public/data/invoices`;
             
-            // --- ΜΟΝΑΔΙΚΟ ID ΓΙΑ ΑΠΟΦΥΓΗ ΔΙΠΛΟΤΥΠΩΝ ---
+            // --- ΔΙΟΡΘΩΣΗ: ΜΟΝΑΔΙΚΟ ID ---
             // Δημιουργούμε ένα ID που είναι μοναδικό για κάθε συνδυασμό Προμηθευτή + Αριθμού.
-            // Αν ξαναδοθεί το ίδιο, θα παραχθεί το ίδιο ID και θα γίνει ενημέρωση αντί για νέο.
             const uniqueDocId = `${newInvoice.supplier}-${newInvoice.number}`
                 .toLowerCase()
                 .trim()
@@ -643,7 +653,7 @@ function App() {
                 amount: parsedAmount, 
                 date: new Date(newInvoice.date), 
                 createdAt: serverTimestamp(),
-                createdBy: userId // Καταγράφουμε ποιος το έκανε, αλλά όλοι το βλέπουν
+                createdBy: userId // Αποθηκεύουμε ποιος το έφτιαξε, ακόμα και αν είναι public
             };
             
             // Χρησιμοποιούμε setDoc με συγκεκριμένο ID αντί για addDoc
@@ -672,7 +682,7 @@ function App() {
         
         try {
             setError(null);
-            // --- ΔΙΑΓΡΑΦΗ ΑΠΟ ΤΟΝ ΚΟΙΝΟΧΡΗΣΤΟ ΦΑΚΕΛΟ ---
+            // --- ΔΙΟΡΘΩΣΗ: PUBLIC PATH ---
             const docPath = `artifacts/${appId}/public/data/invoices/${invoiceToDelete}`;
             
             await deleteDoc(doc(db, docPath));
@@ -964,7 +974,7 @@ function App() {
                                 key={invoice.id} 
                                 id={`invoice-${invoice.id}`}
                                 onClick={() => setViewInvoice(invoice)}
-                                className={`${invoice.id === potentialDuplicateId ? 'bg-pink-900/30 border-l-4 border-pink-600' : ''} cursor-pointer hover:bg-gray-700 transition-colors invoice-row`}
+                                className={`${invoice.id === potentialDuplicateId ? 'animate-highlight-pulse border-l-4 border-red-500' : ''} cursor-pointer hover:bg-gray-700 transition-colors invoice-row`}
                                 style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
                                 title="Κάντε κλικ για λεπτομέρειες"
                             >
@@ -1028,12 +1038,36 @@ function App() {
                     background: #6b7280; /* gray-500 */
                 }
 
+                /* Light Scrollbar for the white paper section */
+                .custom-scrollbar-light::-webkit-scrollbar {
+                    width: 8px;
+                }
+                .custom-scrollbar-light::-webkit-scrollbar-track {
+                    background: #f3f4f6; /* gray-100 */
+                }
+                .custom-scrollbar-light::-webkit-scrollbar-thumb {
+                    background: #d1d5db; /* gray-300 */
+                    border-radius: 4px;
+                }
+                .custom-scrollbar-light::-webkit-scrollbar-thumb:hover {
+                    background: #9ca3af; /* gray-400 */
+                }
+
                 @keyframes fade-in-up {
                     from { opacity: 0; transform: translateY(10px); }
                     to { opacity: 1; transform: translateY(0); }
                 }
                 .animate-fade-in-up {
                     animation: fade-in-up 0.3s ease-out forwards;
+                }
+
+                /* New Strong Highlight Pulse Animation */
+                @keyframes highlight-pulse {
+                    0%, 100% { background-color: rgba(88, 28, 135, 0); } /* transparent/dark base */
+                    50% { background-color: rgba(220, 38, 38, 0.5); } /* strong red */
+                }
+                .animate-highlight-pulse {
+                    animation: highlight-pulse 1.5s ease-in-out infinite;
                 }
             `}</style>
 
@@ -1165,7 +1199,7 @@ function App() {
                 {Object.keys(sortedAndFilteredInvoices.grouped).length === 0 ? (
                     <p className="text-center text-gray-500 py-8">Δεν βρέθηκαν τιμολόγια.</p>
                 ) : (
-                    <div className="text-gray-900">
+                    <div className="text-gray-900 max-h-[750px] overflow-y-auto custom-scrollbar-light pr-2">
                         {Object.keys(sortedAndFilteredInvoices.grouped).map(groupName => (
                             <div key={groupName} className="mb-8 border border-gray-200 rounded-lg shadow-sm">
                                 {groupBy !== 'none' && (
@@ -1192,7 +1226,7 @@ function App() {
                                                     key={invoice.id} 
                                                     id={`invoice-${invoice.id}`}
                                                     onClick={() => setViewInvoice(invoice)}
-                                                    className={`${invoice.id === potentialDuplicateId ? 'bg-pink-900/30 border-l-4 border-pink-600' : ''} cursor-pointer hover:bg-gray-50 transition-colors`}
+                                                    className={`${invoice.id === potentialDuplicateId ? 'animate-highlight-pulse border-l-4 border-red-500' : ''} cursor-pointer hover:bg-gray-50 transition-colors`}
                                                 >
                                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{invoice.date ? invoice.date.toLocaleDateString('el-GR') : 'N/A'}</td>
                                                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-indigo-600">{invoice.supplier}</td>

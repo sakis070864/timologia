@@ -7,12 +7,12 @@ import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, se
 // --- ΡΥΘΜΙΣΕΙΣ FIREBASE ---
 // Χρησιμοποιούμε τα πραγματικά κλειδιά (Hardcoded) για άμεση λειτουργία
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  apiKey: "AIzaSyCb5OWoNzaVVoskHLV7_ViyQoRk1-B5lA8",
+  authDomain: "timologia-76df2.firebaseapp.com",
+  projectId: "timologia-76df2",
+  storageBucket: "timologia-76df2.firebasestorage.app",
+  messagingSenderId: "879916434962",
+  appId: "1:879916434962:web:a0ba8a36b1a2ebb4b17acb"
 };
 
 // Αυτά τα αφήνετε ως έχουν
@@ -41,7 +41,161 @@ const arrayBufferToBase64 = (buffer) => {
     return window.btoa(binary);
 };
 
-// --- NEW COMPONENT: Statistics Modal (Dark Mode) ---
+// --- NEW COMPONENT: Budget Modal (Προϋπολογισμός) ---
+const BudgetModal = ({ totalSpent, onClose }) => {
+    const [sqMeters, setSqMeters] = useState('');
+    const [pricePerSq, setPricePerSq] = useState('');
+    const [isFullScreen, setIsFullScreen] = useState(false);
+
+    const totalBudget = (parseFloat(sqMeters) || 0) * (parseFloat(pricePerSq) || 0);
+    const spentPercentage = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
+    const remaining = totalBudget - totalSpent;
+    const isOverBudget = remaining < 0;
+
+    // Υπολογισμός CSS Conic Gradient για την πίτα
+    // Αν spentPercentage > 100, τότε όλη η πίτα είναι κόκκινη (υπέρβαση)
+    const pieStyle = {
+        background: totalBudget === 0 
+            ? '#374151' // Gray if no budget
+            : isOverBudget
+                ? `conic-gradient(#ef4444 0% 100%)` // All red if over budget
+                : `conic-gradient(#10b981 0% ${spentPercentage}%, #374151 ${spentPercentage}% 100%)`, // Green vs Gray
+        borderRadius: '50%',
+        width: '200px',
+        height: '200px',
+        transition: 'background 0.5s ease'
+    };
+
+    return (
+        <div className={`fixed inset-0 z-[120] flex items-center justify-center transition-all duration-300 ${isFullScreen ? 'bg-gray-900 p-0' : 'bg-black bg-opacity-80 p-4 backdrop-blur-sm'}`}>
+            <div className={`bg-gray-800 shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${isFullScreen ? 'w-full h-full rounded-none' : 'w-full max-w-4xl max-h-[90vh] rounded-2xl animate-fade-in-up border border-gray-700'}`}>
+                {/* Header */}
+                <div className="bg-gradient-to-r from-emerald-900 to-teal-900 p-5 text-white flex justify-between items-center shrink-0 shadow-md border-b border-gray-700">
+                    <div className="flex items-center space-x-3">
+                        <div className="bg-white bg-opacity-10 p-2 rounded-lg">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-gray-100">Υπολογισμός Κόστους</h2>
+                            <p className="text-xs text-gray-400 opacity-80">Προϋπολογισμός vs Πραγματικά Έξοδα</p>
+                        </div>
+                    </div>
+                    <div className="flex space-x-2">
+                        <button 
+                            onClick={() => setIsFullScreen(!isFullScreen)} 
+                            className="text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-full p-2 transition"
+                            title={isFullScreen ? "Επαναφορά" : "Πλήρης Οθόνη"}
+                        >
+                            {isFullScreen ? (
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 9L4 4m0 0l5 0m-5 0l0 5M15 9l5-5m0 0l-5 0m5 0l0 5M9 15l-5 5m0 0l5 0m-5 0l0-5M15 15l5 5m0 0l-5 0m5 0l0-5" /></svg>
+                            ) : (
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                            )}
+                        </button>
+                        <button onClick={onClose} className="text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-full p-2 transition">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-6 overflow-y-auto flex-grow bg-gray-900 space-y-8 custom-scrollbar-dark">
+                    
+                    {/* Inputs */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-800 p-6 rounded-xl border border-gray-700">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-400 mb-2">Τετραγωνικά Μέτρα (μ²)</label>
+                            <input 
+                                type="number" 
+                                value={sqMeters} 
+                                onChange={(e) => setSqMeters(e.target.value)} 
+                                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-emerald-500 focus:border-emerald-500 text-lg font-bold"
+                                placeholder="0"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-400 mb-2">Τιμή ανά μ² (€)</label>
+                            <input 
+                                type="number" 
+                                value={pricePerSq} 
+                                onChange={(e) => setPricePerSq(e.target.value)} 
+                                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-emerald-500 focus:border-emerald-500 text-lg font-bold"
+                                placeholder="0"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Results & Chart Area */}
+                    <div className="flex flex-col md:flex-row gap-8 items-center justify-center">
+                        
+                        {/* Pie Chart */}
+                        <div className="relative flex items-center justify-center p-4 bg-gray-800 rounded-xl border border-gray-700 shadow-lg">
+                            <div style={pieStyle} className="rounded-full shadow-2xl relative">
+                                {/* Inner circle to make it a donut (optional, remove for full pie) */}
+                                <div className="absolute inset-0 m-auto bg-gray-800 rounded-full w-[140px] h-[140px] flex items-center justify-center">
+                                    <div className="text-center">
+                                        <p className="text-gray-400 text-xs uppercase font-bold">Δαπανη</p>
+                                        <p className={`text-2xl font-extrabold ${isOverBudget ? 'text-red-500' : 'text-emerald-400'}`}>
+                                            {totalBudget > 0 ? Math.min(spentPercentage, 100).toFixed(1) : 0}%
+                                        </p>
+                                        {isOverBudget && <p className="text-red-500 text-xs font-bold animate-pulse">ΥΠΕΡΒΑΣΗ!</p>}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Text Details */}
+                        <div className="flex-1 w-full space-y-4">
+                            <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 flex justify-between items-center">
+                                <div>
+                                    <p className="text-sm text-gray-400">Σύνολο Προϋπολογισμού</p>
+                                    <p className="text-2xl font-bold text-white">{formatCurrency(totalBudget)}</p>
+                                </div>
+                                <div className="bg-gray-700 p-2 rounded-lg">
+                                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                </div>
+                            </div>
+
+                            <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 flex justify-between items-center">
+                                <div>
+                                    <p className="text-sm text-gray-400">Έχουν Δαπανηθεί (Τιμολόγια)</p>
+                                    <p className="text-2xl font-bold text-emerald-400">{formatCurrency(totalSpent)}</p>
+                                </div>
+                                <div className="bg-emerald-900/30 p-2 rounded-lg">
+                                    <svg className="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                                </div>
+                            </div>
+
+                            <div className={`bg-gray-800 p-4 rounded-xl border ${isOverBudget ? 'border-red-600 bg-red-900/10' : 'border-gray-700'} flex justify-between items-center`}>
+                                <div>
+                                    <p className={`text-sm ${isOverBudget ? 'text-red-400' : 'text-gray-400'}`}>
+                                        {isOverBudget ? 'Υπέρβαση Προϋπολογισμού' : 'Υπόλοιπο Διαθέσιμο'}
+                                    </p>
+                                    <p className={`text-2xl font-bold ${isOverBudget ? 'text-red-500' : 'text-gray-300'}`}>
+                                        {formatCurrency(Math.abs(remaining))}
+                                    </p>
+                                </div>
+                                <div className={`${isOverBudget ? 'bg-red-900/30' : 'bg-gray-700'} p-2 rounded-lg`}>
+                                    <svg className={`w-8 h-8 ${isOverBudget ? 'text-red-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                
+                {/* Footer */}
+                <div className="bg-gray-800 p-4 border-t border-gray-700 text-right">
+                    <button onClick={onClose} className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 font-bold rounded-lg transition shadow-sm border border-gray-600">
+                        Κλείσιμο
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- MODIFIED COMPONENT: Statistics Modal (Dark Mode) ---
 const StatisticsModal = ({ invoices, onClose }) => {
     // State για Full Screen
     const [isFullScreen, setIsFullScreen] = useState(false);
@@ -178,7 +332,7 @@ const StatisticsModal = ({ invoices, onClose }) => {
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        {/* Column 1: Suppliers Chart & Table */}
+                        {/* Column 1: Suppliers Chart (UPDATED with external labels) */}
                         <div className="space-y-8">
                             <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-sm">
                                 <h3 className="text-lg font-bold text-gray-200 mb-6 flex items-center border-b border-gray-700 pb-2">
@@ -189,14 +343,21 @@ const StatisticsModal = ({ invoices, onClose }) => {
                                     {stats.map((item, index) => (
                                         <div key={index} className="flex items-center text-sm group">
                                             <div className="w-24 md:w-32 truncate font-medium text-gray-300 mr-3 text-right" title={item.name}>{item.name}</div>
-                                            <div className="flex-1 h-6 bg-gray-700 rounded-lg overflow-hidden relative">
-                                                <div
-                                                    className="h-full rounded-lg bg-indigo-600 hover:bg-indigo-500 transition-all duration-700 ease-out flex items-center justify-end pr-2 text-white text-xs font-bold"
-                                                    style={{ width: `${Math.max(item.percentage, 10)}%` }}
-                                                >
+                                            
+                                            {/* Container for Bar + External Text */}
+                                            <div className="flex-1 flex items-center">
+                                                <div className="h-6 bg-gray-700 rounded-lg overflow-hidden flex-grow relative max-w-[80%]">
+                                                    <div
+                                                        className="h-full rounded-lg bg-indigo-600 hover:bg-indigo-500 transition-all duration-700 ease-out"
+                                                        style={{ width: `${Math.max(item.percentage, 1)}%` }}
+                                                    >
+                                                    </div>
+                                                </div>
+                                                <div className="ml-3 font-bold text-white text-xs">
                                                     {item.percentage.toFixed(1)}%
                                                 </div>
                                             </div>
+
                                             <div className="w-20 text-right font-bold text-gray-200 ml-2 text-xs">
                                                 {formatCurrency(item.amount)}
                                             </div>
@@ -206,6 +367,7 @@ const StatisticsModal = ({ invoices, onClose }) => {
                             </div>
 
                             <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-sm overflow-hidden">
+                                {/* Table remains same */}
                                 <div className="bg-gray-750 p-4 border-b border-gray-700">
                                     <h3 className="text-lg font-bold text-gray-200 flex items-center">
                                         <span className="bg-green-900 text-green-200 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">ΠΙΝΑΚΑΣ</span>
@@ -235,7 +397,7 @@ const StatisticsModal = ({ invoices, onClose }) => {
                             </div>
                         </div>
 
-                        {/* Column 2: Monthly Stats */}
+                        {/* Column 2: Monthly Stats (UPDATED with external labels) */}
                         <div className="space-y-8">
                             <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-sm">
                                 <h3 className="text-lg font-bold text-gray-200 mb-6 flex items-center border-b border-gray-700 pb-2">
@@ -246,14 +408,21 @@ const StatisticsModal = ({ invoices, onClose }) => {
                                     {monthlyStats.map((item, index) => (
                                         <div key={index} className="flex items-center text-sm group">
                                             <div className="w-24 md:w-32 truncate font-medium text-gray-300 mr-3 text-right capitalize" title={item.name}>{item.name.replace(/\s\d{4}$/, '')}</div>
-                                            <div className="flex-1 h-6 bg-gray-700 rounded-lg overflow-hidden relative">
-                                                <div
-                                                    className="h-full rounded-lg bg-orange-600 hover:bg-orange-500 transition-all duration-700 ease-out flex items-center justify-end pr-2 text-white text-xs font-bold"
-                                                    style={{ width: `${Math.max(item.percentage, 10)}%` }}
-                                                >
+                                            
+                                            {/* Container for Bar + External Text */}
+                                            <div className="flex-1 flex items-center">
+                                                <div className="h-6 bg-gray-700 rounded-lg overflow-hidden flex-grow relative max-w-[80%]">
+                                                    <div
+                                                        className="h-full rounded-lg bg-orange-600 hover:bg-orange-500 transition-all duration-700 ease-out"
+                                                        style={{ width: `${Math.max(item.percentage, 1)}%` }}
+                                                    >
+                                                    </div>
+                                                </div>
+                                                <div className="ml-3 font-bold text-white text-xs">
                                                     {item.percentage.toFixed(1)}%
                                                 </div>
                                             </div>
+
                                             <div className="w-20 text-right font-bold text-gray-200 ml-2 text-xs">
                                                 {formatCurrency(item.amount)}
                                             </div>
@@ -263,6 +432,7 @@ const StatisticsModal = ({ invoices, onClose }) => {
                             </div>
 
                             <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-sm overflow-hidden">
+                                {/* Table remains same */}
                                 <div className="bg-gray-750 p-4 border-b border-gray-700">
                                     <h3 className="text-lg font-bold text-gray-200 flex items-center">
                                         <span className="bg-teal-900 text-teal-200 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">ΙΣΤΟΡΙΚΟ</span>
@@ -433,6 +603,7 @@ function App() {
     const [endDate, setEndDate] = useState('');
     
     const [showStatsModal, setShowStatsModal] = useState(false);
+    const [showBudgetModal, setShowBudgetModal] = useState(false);
     const [viewInvoice, setViewInvoice] = useState(null);
 
     // Φόρτωση βιβλιοθηκών
@@ -1085,6 +1256,14 @@ function App() {
                 />
             )}
 
+            {/* Modal Προϋπολογισμού (Budget) */}
+            {showBudgetModal && (
+                <BudgetModal 
+                    totalSpent={invoiceSummary.totalAmount} 
+                    onClose={() => setShowBudgetModal(false)} 
+                />
+            )}
+
             <ConfirmationModal 
                 isOpen={isModalOpen} 
                 content={
@@ -1165,6 +1344,16 @@ function App() {
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                             <span>Στατιστικά</span>
+                        </button>
+
+                        {/* Κουμπί για το νέο παράθυρο Προϋπολογισμού */}
+                        <button 
+                            type="button" 
+                            onClick={() => setShowBudgetModal(true)} 
+                            className={`px-3 py-2 text-sm font-semibold rounded-md transition shadow-sm flex items-center space-x-2 h-[38px] ${showBudgetModal ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-emerald-300 border border-emerald-500 hover:bg-gray-600'}`}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <span>Προϋπολογισμός</span>
                         </button>
                     </div>
 
